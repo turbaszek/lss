@@ -33,7 +33,7 @@ class Launchpad:
     def __init__(self, name: str = "Launchpad Mini MK3 LPMiniMK3 MIDI"):
         self._outport = mido.open_output(name + " In", autoreset=True)
         self._inport = mido.open_input(name + " Out", autoreset=True)
-        self.midi_outport = mido.open_output("PadSequencer", virtual=True, autoreset=True)
+        self.midi_outport = mido.open_output("Launchpad Step Sequencer", virtual=True, autoreset=True)
 
         # Set programmer mode
         self._outport.send(HexMessage("240 0 32 41 2 13 0 127 247"))
