@@ -1,7 +1,8 @@
-import atexit
+import signal
 import time
 from contextlib import contextmanager
-from typing import Dict, List
+from functools import cached_property
+from typing import Dict
 
 import mido
 
@@ -9,10 +10,18 @@ from lss.drums import MiDIDrums
 from lss.midi import HexMessage
 
 
-class Colors:
+class Color:
     GREEN = 87
     GREEN_DIMMED = 19
     PINK = 107
+
+
+class FunctionPad:
+    ARROW_UP = 91
+    ARROW_DOWN = 92
+    STOP = 19
+
+    TEMPO_PADS = [ARROW_UP, ARROW_DOWN]
 
 
 class Launchpad:
@@ -25,7 +34,7 @@ class Launchpad:
         3: MiDIDrums.HH_OPEN,
         2: MiDIDrums.CRASH,
         1: MiDIDrums.TOM_MID,
-        0: None,  # system functions
+        0: MiDIDrums.RIDE,
     }
 
     pads: Dict[int, "Pad"] = {}
@@ -44,21 +53,22 @@ class Launchpad:
         self._show_lss()
 
         self._is_stopped = True
-        self._tempo = 100  # bpm
+        self._tempo = 120  # bpm
 
     def _register_signal_handler(self):
-        def _sig_handler():
+        def _sig_handler(signum, frame):
             self._reset_all_pads()
             self._inport.close()
             self._outport.close()
 
-        atexit.register(_sig_handler)
+        signal.signal(signal.SIGINT, _sig_handler)
+        signal.signal(signal.SIGTERM, _sig_handler)
 
     def _show_lss(self):
         pads = [61, 51, 41, 31, 32, 65, 54, 45, 34, 68, 57, 48, 37]
         for pad in pads:
-            self.pads.get(pad).on()
-        time.sleep(3)
+            self.pads.get(pad).blink()
+        time.sleep(1.5)
         self._reset_all_pads()
 
     def _sleep(self):
@@ -75,7 +85,7 @@ class Launchpad:
         for x in range(9):
             for y in range(9):
                 pad = Pad(x, y, launchpad=self)
-                pad.off(final=True)
+                pad.off()
                 self.pads[pad.note] = pad
 
     def read_all_msgs(self):
@@ -90,15 +100,15 @@ class Launchpad:
             if msg.value != 127:
                 return
 
-            if msg.control == 19:
+            if msg.control == FunctionPad.STOP:
                 self._is_stopped = not self._is_stopped
                 return
 
-            if msg.control in (91, 92):
+            if msg.control in FunctionPad.TEMPO_PADS:
                 self.adjust_tempo(msg.control)
 
+            # Last control column for muting
             if (msg.control - 9) % 10 == 0:
-                # Last control column
                 self.mute(msg.control)
                 return
 
@@ -121,12 +131,12 @@ class Launchpad:
 
     def get_column(self, x: int):
         """Returns single column of pads, include functional buttons for better UX"""
-        pads_ids = [10 * (i + 1) + x + 1 for i in range(9)]
+        pads_ids = [Pad.get_note(x, y) for y in range(9)]
         return [self.pads.get(idx) for idx in pads_ids]
 
     def get_row(self, y: int):
         """Returns single row of pads, skips functional buttons"""
-        pads_ids = [10 * (y + 1) + i + 1 for i in range(8)]
+        pads_ids = [Pad.get_note(x, y) for x in range(8)]
         print(pads_ids)
         return [self.pads.get(idx) for idx in pads_ids]
 
@@ -134,14 +144,14 @@ class Launchpad:
     def column_on(self, x: int):
         pads = self.get_column(x)
         for p in pads:
-            p.on()
+            p.blink()
             if not self._is_stopped:
                 p.play()
 
         yield
 
         for p in pads:
-            p.off()
+            p.unblink()
 
     def play(self):
         x = 0
@@ -161,63 +171,82 @@ class Launchpad:
             pad.mute()
 
     def adjust_tempo(self, msg: int):
-        if msg == 92:
-            self._tempo -= 1
-        if msg == 91:
-            self._tempo += 1
-        print(self._tempo)
+        if msg == FunctionPad.ARROW_DOWN:
+            self._tempo -= 5
+        if msg == FunctionPad.ARROW_UP:
+            self._tempo += 5
 
 
 class Pad:
-    def __init__(self, x: int, y: int, launchpad: Launchpad = None):
+    """
+    Represents one of 81 pads.
+
+    Pad is defined by (x, y) pair which strictly corresponds with note
+    assigned to the pad.
+
+    Note map:
+
+    91 | 92 | 93 | 94 | 95 | 96 | 97 | 98 || 99
+    ===========================================
+    81 | 82 | 83 | 84 | 85 | 86 | 87 | 88 || 89
+    71 | 72 | 73 | 74 | 75 | 76 | 77 | 78 || 79
+    61 | 62 | 63 | 64 | 65 | 66 | 67 | 68 || 69
+    51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 || 59
+    41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 || 49
+    31 | 32 | 33 | 34 | 35 | 36 | 37 | 38 || 39
+    21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 || 29
+    11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 || 19
+    """
+
+    def __init__(self, x: int, y: int, launchpad):
         assert 0 <= x < 9, f"x has to be between 0 and 9, got {x}"
         assert 0 <= y < 9, f"y has to be between 0 and 9, got {y}"
 
         self._launchpad = launchpad
-        self.note = 10 * (y + 1) + x + 1
         self.x = x
         self.y = y
         self._is_on = False
         self._muted = False
         self._sound = Launchpad.ROW_TO_SOUND[y]
 
-    def __eq__(self, other):
-        return self.x == other.x and self.y == other.y
+    @staticmethod
+    def get_note(x: int, y: int) -> int:
+        return 10 * (y + 1) + x + 1
 
-    def get_color(self):
-        if self._is_on:
-            if self._muted:
-                return Colors.GREEN_DIMMED
-            return Colors.GREEN
-        return Colors.PINK
+    @cached_property
+    def note(self) -> int:
+        return self.get_note(self.x, self.y)
 
-    def on(self):
-        color = self.get_color()
+    def on(self, color: int) -> None:
         self._launchpad.on(self.note, color)
 
-    def off(self, final: bool = False):
-        """
-        Turn the pad off
-
-        :param final: does not fallbacks to previous color
-        """
+    def off(self) -> None:
         self._launchpad.off(self.note)
-        if not final and self._is_on:
-            self.on()
 
-    def mute(self):
+    def _set_active_color(self) -> None:
+        if self._muted:
+            self.on(Color.GREEN_DIMMED)
+        elif self._is_on:
+            self.on(Color.GREEN)
+        else:
+            self._launchpad.off(self.note)
+
+    def blink(self) -> None:
+        if not self._is_on:
+            self.on(Color.PINK)
+
+    def unblink(self) -> None:
+        self._set_active_color()
+
+    def mute(self) -> None:
         self._muted = not self._muted
-        if self._is_on:
-            self.on()
+        self._set_active_color()
 
-    def play(self):
+    def play(self) -> None:
         if self._is_on and not self._muted:
-            print(f"Playing {self._sound}")
+            print(f"playing {self._sound}")
             self._launchpad.send_message(self._sound.value)
 
-    def click(self):
+    def click(self) -> None:
         self._is_on = not self._is_on
-        if not self._is_on:
-            self.off(final=True)
-        else:
-            self.on()
+        self._set_active_color()
