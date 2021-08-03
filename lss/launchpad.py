@@ -224,10 +224,11 @@ class Pad:
         self._launchpad.off(self.note)
 
     def _set_active_color(self) -> None:
-        if self._muted:
-            self.on(Color.GREEN_DIMMED)
-        elif self._is_on:
-            self.on(Color.GREEN)
+        if self._is_on:
+            if self._muted:
+                self.on(Color.GREEN_DIMMED)
+            else:
+                self.on(Color.GREEN)
         else:
             self._launchpad.off(self.note)
 

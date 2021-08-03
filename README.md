@@ -28,7 +28,8 @@ can be used as input in Logic Pro (or other DAW).
 In Logic you may need to select
 `Control Surfaces > Bypass All Control Surfaces` to avoid default mode of launchpad.
 
-TODO: demo video
+### Demo
+[![Demo video on YouTube](images/lss_demo.png)](https://youtu.be/1i5aPPSh9DQ)
 
 ## Installation
 
