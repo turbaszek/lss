@@ -1,10 +1,12 @@
+import asyncio
+
 from lss.launchpad import Launchpad
 
 
-def main():
+async def main():
     launchpad = Launchpad()
-    launchpad.play()
+    await launchpad.run()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

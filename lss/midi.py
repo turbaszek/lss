@@ -16,3 +16,21 @@ class HexMessage(mido.Message):
     def __init__(self, msg: str):
         data = map(int, msg.split(" ")[1:-1])
         super().__init__("sysex", data=data)
+
+
+class ControlMessage(mido.Message):
+    control: int
+    value: int
+
+    @staticmethod
+    def is_control(msg):
+        return hasattr(msg, "control") and hasattr(msg, "value")
+
+
+class NoteMessage(mido.Message):
+    velocity: int
+    note: int
+
+    @staticmethod
+    def is_note(msg):
+        return hasattr(msg, "velocity") and hasattr(msg, "note")

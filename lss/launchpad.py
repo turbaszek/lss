@@ -1,26 +1,35 @@
+import asyncio
 import signal
 import time
-from contextlib import contextmanager
 from functools import cached_property
-from typing import Dict
+from typing import Dict, Iterable, List
 
 import mido
 
 from lss.drums import MiDIDrums
-from lss.midi import HexMessage
+from lss.midi import ControlMessage, HexMessage, NoteMessage
 
 
 class Color:
+    """
+    Full color map is available in Novation guide
+
+    https://www.djshop.gr/Attachment/DownloadFile?downloadId=10737
+    """
+
     GREEN = 87
     GREEN_DIMMED = 19
     PINK = 107
 
 
 class FunctionPad:
+    """
+    Function pads, mostly top row and right column.
+    """
+
     ARROW_UP = 91
     ARROW_DOWN = 92
     STOP = 19
-
     TEMPO_PADS = [ARROW_UP, ARROW_DOWN]
 
 
@@ -42,6 +51,8 @@ class Launchpad:
     def __init__(self, name: str = "Launchpad Mini MK3 LPMiniMK3 MIDI"):
         self._outport = mido.open_output(name + " In", autoreset=True)
         self._inport = mido.open_input(name + " Out", autoreset=True)
+
+        # Create virtual MiDI device where sequencer sends signals
         self.midi_outport = mido.open_output("Launchpad Step Sequencer", virtual=True, autoreset=True)
 
         # Set programmer mode
@@ -55,126 +66,126 @@ class Launchpad:
         self._is_stopped = True
         self._tempo = 120  # bpm
 
-    def _register_signal_handler(self):
+    def _register_signal_handler(self) -> None:
         def _sig_handler(signum, frame):
             self._reset_all_pads()
             self._inport.close()
             self._outport.close()
+            self.midi_outport.close()
 
         signal.signal(signal.SIGINT, _sig_handler)
         signal.signal(signal.SIGTERM, _sig_handler)
 
-    def _show_lss(self):
+    def _show_lss(self) -> None:
+        """Show LSS when starting sequencer"""
         pads = [61, 51, 41, 31, 32, 65, 54, 45, 34, 68, 57, 48, 37]
         for pad in pads:
             self.pads.get(pad).blink()
         time.sleep(1.5)
         self._reset_all_pads()
 
-    def _sleep(self):
-        time.sleep(60 / self._tempo)
+    async def _sleep(self) -> None:
+        await asyncio.sleep(60 / self._tempo)
 
-    def on(self, note: int, color: int = 4):
+    def on(self, note: int, color: int = 4) -> None:
         self._outport.send(mido.Message("note_on", note=note, velocity=color))
 
-    def off(self, note: int):
+    def off(self, note: int) -> None:
         self._outport.send(mido.Message("note_off", note=note))
 
-    def _reset_all_pads(self):
-        self._all_pads = []
+    def _reset_all_pads(self) -> None:
+        self.pads = {}
         for x in range(9):
             for y in range(9):
                 pad = Pad(x, y, launchpad=self)
                 pad.off()
                 self.pads[pad.note] = pad
 
-    def read_all_msgs(self):
-        for msg in self._inport.iter_pending():
-            self.process_msg(msg)
-
-    def process_msg(self, msg: mido.Message):
+    async def _process_msg(self, msg) -> None:
         print(msg)
-
-        # Handle control messages
-        if hasattr(msg, "control"):
-            if msg.value != 127:
-                return
-
-            if msg.control == FunctionPad.STOP:
-                self._is_stopped = not self._is_stopped
-                return
-
-            if msg.control in FunctionPad.TEMPO_PADS:
-                self.adjust_tempo(msg.control)
-
-            # Last control column for muting
-            if (msg.control - 9) % 10 == 0:
-                self.mute(msg.control)
-                return
-
-        if self._is_stopped:
-            # If sequencer is stopped then ignore none control messages
+        if ControlMessage.is_control(msg):
+            self._process_control_message(msg)
             return
 
-        if hasattr(msg, "velocity") and hasattr(msg, "note"):
-            if msg.velocity != 127:
-                return
+        if NoteMessage.is_note(msg):
+            self._process_pad_message(msg)
+            return
 
-            pad = self.pads.get(msg.note)
-            if pad:
-                pad.click()
-                return
+    def _process_control_message(self, msg: ControlMessage) -> None:
+        if msg.value != 127:
+            return
 
-    def send_message(self, note):
+        if msg.control == FunctionPad.STOP:
+            self._is_stopped = not self._is_stopped
+            return
+
+        if msg.control in FunctionPad.TEMPO_PADS:
+            self.adjust_tempo(msg.control)
+            return
+
+            # Last control column for muting
+        if (msg.control - 9) % 10 == 0:
+            self._mute(msg.control)
+            return
+
+    def _process_pad_message(self, msg: NoteMessage) -> None:
+        if msg.velocity != 127:
+            return
+
+        pad = self.pads.get(msg.note)
+        if pad:
+            pad.click()
+            return
+
+    def _mute(self, msg: int) -> None:
+        """All pads in last right column are used to mute corresponding row"""
+        y = int((msg - 9) / 10 - 1)
+        for pad in self.get_pads_in_row(y):
+            pad.mute()
+
+    def adjust_tempo(self, msg: int) -> None:
+        if msg == FunctionPad.ARROW_DOWN:
+            self._tempo -= 5
+        elif msg == FunctionPad.ARROW_UP:
+            self._tempo += 5
+
+    def send_message(self, note) -> None:
+        """Send note to virtual MiDI device"""
         self.midi_outport.send(mido.Message("note_on", note=note))
         self.midi_outport.send(mido.Message("note_off", note=note))
 
-    def get_column(self, x: int):
+    def get_pads_in_column(self, x: int) -> List["Pad"]:
         """Returns single column of pads, include functional buttons for better UX"""
         pads_ids = [Pad.get_note(x, y) for y in range(9)]
         return [self.pads.get(idx) for idx in pads_ids]
 
-    def get_row(self, y: int):
+    def get_pads_in_row(self, y: int) -> List["Pad"]:
         """Returns single row of pads, skips functional buttons"""
         pads_ids = [Pad.get_note(x, y) for x in range(8)]
-        print(pads_ids)
         return [self.pads.get(idx) for idx in pads_ids]
 
-    @contextmanager
-    def column_on(self, x: int):
-        pads = self.get_column(x)
-        for p in pads:
-            p.blink()
-            if not self._is_stopped:
-                p.play()
+    async def _process_column(self, column: int):
+        pads = self.get_pads_in_column(column)
+        await asyncio.gather(*[p.process_pad(self._is_stopped) for p in pads])
+        await self._sleep()
+        await asyncio.gather(*[p.unblink() for p in pads])
 
-        yield
-
-        for p in pads:
-            p.unblink()
-
-    def play(self):
-        x = 0
+    async def _process_signals(self) -> None:
         while True:
-            with self.column_on(x):
-                self.read_all_msgs()
-                if self._is_stopped:
-                    time.sleep(0.1)
-                    continue
-                self._sleep()
+            await asyncio.gather(*[self._process_msg(m) for m in self._inport.iter_pending()])
+            await asyncio.sleep(0.001)
 
-            x = (x + 1) % 8
+    def column_iterator(self) -> Iterable[int]:
+        column = 0
+        while True:
+            yield column
+            column = (column + 1) % 8 if not self._is_stopped else column
+            time.sleep(0.001)
 
-    def mute(self, msg: int):
-        y = int((msg - 9) / 10 - 1)
-        for pad in self.get_row(y):
-            pad.mute()
-
-    def adjust_tempo(self, msg: int):
-        if msg == FunctionPad.ARROW_DOWN:
-            self._tempo -= 5
-        if msg == FunctionPad.ARROW_UP:
-            self._tempo += 5
+    async def run(self) -> None:
+        asyncio.get_event_loop().create_task(self._process_signals())
+        for column in self.column_iterator():
+            await self._process_column(column)
 
 
 class Pad:
@@ -236,7 +247,7 @@ class Pad:
         if not self._is_on:
             self.on(Color.PINK)
 
-    def unblink(self) -> None:
+    async def unblink(self) -> None:
         self._set_active_color()
 
     def mute(self) -> None:
@@ -251,3 +262,8 @@ class Pad:
     def click(self) -> None:
         self._is_on = not self._is_on
         self._set_active_color()
+
+    async def process_pad(self, is_stopped: bool) -> None:
+        self.blink()
+        if not is_stopped:
+            self.play()
