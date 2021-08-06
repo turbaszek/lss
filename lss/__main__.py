@@ -1,10 +1,10 @@
 import asyncio
 
-from lss.launchpad import Launchpad
+from lss.sequencer import Sequencer
 
 
 async def main():
-    launchpad = Launchpad()
+    launchpad = Sequencer()
     await launchpad.run()
 
 
