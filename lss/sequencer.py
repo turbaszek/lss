@@ -22,8 +22,11 @@ class Sequencer:
         # Sequencer state and control
         self._is_stopped = True
         self._tempo = 120  # bpm
+        self._running = True
 
     def _sig_handler(self, signum, frame):
+        print("\nExiting...")
+        self._running = False
         self.midi_outport.close()
 
     def _show_lss(self) -> None:
@@ -103,13 +106,13 @@ class Sequencer:
         await asyncio.gather(*[p.unblink() for p in pads])
 
     async def _process_signals(self) -> None:
-        while True:
+        while self._running:
             await asyncio.gather(*[self._process_msg(m) for m in self.launchpad.get_pending_messages()])
             await asyncio.sleep(0.001)
 
     def column_iterator(self) -> Iterable[int]:
         column = 0
-        while True:
+        while self._running:
             yield column
             column = (column + 1) % 8 if not self._is_stopped else column
             time.sleep(0.001)
