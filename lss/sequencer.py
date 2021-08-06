@@ -4,24 +4,27 @@ from typing import Iterable
 
 import mido
 
-from lss.devices.launchpad_mini_3 import LaunchpadMiniMk3
 from lss.midi import ControlMessage, NoteMessage
-from lss.utils import FunctionPad, register_signal_handler
+from lss.utils import FunctionPad, open_output, register_signal_handler
 
 
 class Sequencer:
-    def __init__(self):
+    def __init__(self, launchpad):
         # Create virtual MiDI device where sequencer sends signals
-        self.midi_outport = mido.open_output("Launchpad Step Sequencer", virtual=True, autoreset=True)
-        register_signal_handler(self.midi_outport.close)
+        self.midi_outport = open_output("Launchpad Step Sequencer", virtual=True, autoreset=True)
+        register_signal_handler(self._sig_handler)
 
         # Setup launchpad
-        self.launchpad = LaunchpadMiniMk3()
+        self.launchpad = launchpad
+        self.launchpad.hand_shake()
         self._show_lss()
 
         # Sequencer state and control
         self._is_stopped = True
         self._tempo = 120  # bpm
+
+    def _sig_handler(self, signum, frame):
+        self.midi_outport.close()
 
     def _show_lss(self) -> None:
         """Show LSS when starting sequencer"""

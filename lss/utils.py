@@ -1,9 +1,25 @@
 import signal
 
+import mido
+
 
 def register_signal_handler(func) -> None:
     signal.signal(signal.SIGINT, func)
     signal.signal(signal.SIGTERM, func)
+
+
+def open_output(port_name: str, **kwargs):
+    try:
+        return mido.open_output(port_name, **kwargs)
+    except IOError:
+        raise Exception(f"No output device/port named {port_name}")
+
+
+def open_input(port_name: str, **kwargs):
+    try:
+        return mido.open_input(port_name, **kwargs)
+    except IOError:
+        raise Exception(f"No input device/port named {port_name}")
 
 
 class Color:

@@ -2,7 +2,7 @@
 [![Staic checks](https://github.com/turbaszek/lss/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/turbaszek/lss/actions/workflows/ci.yaml)
 
 Command line tool allowing you to use
-[Novation Launchpad Mini MK 3](https://novationmusic.com/en/launch/launchpad-mini)
+[Novation Launchpad](https://novationmusic.com/en/launch/launchpad-mini)
 as a step sequencer.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
@@ -33,12 +33,19 @@ In Logic you may need to select
 
 ## Installation
 
-To test locally run:
+To install locally run:
 ```sh
-pip install -e ".[devel]"
+pip install -e .
 ```
 
-Then start the sequencer by running `lss`.
+Then start the sequencer by running
+```
+lss run --device-type=<DEVICE_NAME>
+```
+To list supported devices run:
+```
+lss devices list
+```
 
 ## Reference
 

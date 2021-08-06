@@ -12,7 +12,7 @@ DEVEL_REQUIREMENTS = [
     "pytest==6.1.1",
 ]
 
-INSTALL_REQUIREMENTS = ["python-rtmidi==1.4.9", "mido==1.2.10"]
+INSTALL_REQUIREMENTS = ["python-rtmidi>=1.4.9", "mido>=1.2.10", "click>=7.1.2"]
 EXTRAS_REQUIREMENTS = {"devel": DEVEL_REQUIREMENTS}
 
 
@@ -28,7 +28,7 @@ def get_long_description() -> str:
 def do_setup() -> None:
     setup(
         name="lss",
-        description="Step sequencer based on Novation Launchpad Mini MK 3",
+        description="Step sequencer based on Novation Launchpad",
         long_description=get_long_description(),
         long_description_content_type="text/markdown",
         license="Apache License 2.0",
