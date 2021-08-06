@@ -71,7 +71,7 @@ class Sequencer:
             return
 
     def _process_pad_message(self, msg: NoteMessage) -> None:
-        if msg.velocity != 127:
+        if msg.velocity == 0:
             return
 
         pad = self.launchpad.get_pad(msg.note)
