@@ -1,11 +1,13 @@
+import asyncio
 import signal
 
 import mido
 
 
 def register_signal_handler(func) -> None:
-    signal.signal(signal.SIGINT, func)
-    signal.signal(signal.SIGTERM, func)
+    signals = {signal.SIGINT, signal.SIGTERM}
+    for sig in signals:
+        signal.signal(sig, func)
 
 
 def open_output(port_name: str, **kwargs):
