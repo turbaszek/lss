@@ -1,0 +1,15 @@
+---
+area:api:
+  - 'lss/devices/*'
+
+area:cli:
+  - 'lss/sequencer.py'
+  - 'lss/pad.py'
+  - 'lss/drums.py'
+
+area:dev:
+  - '.github/*'
+  - '.gitignore'
+  - '.pre-commit-config.yaml'
+  - 'pyproject.toml'
+  - 'setup.*'
