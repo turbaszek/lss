@@ -1,9 +1,6 @@
-import os
 import signal
-import sys
 
 import mido
-from loguru import logger
 
 
 def register_signal_handler(func) -> None:
