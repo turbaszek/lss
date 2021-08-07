@@ -1,8 +1,8 @@
 ---
-area:api:
+area:devices:
   - 'lss/devices/*'
 
-area:cli:
+area:sequencer:
   - 'lss/sequencer.py'
   - 'lss/pad.py'
   - 'lss/drums.py'
