@@ -3,7 +3,7 @@ from typing import Dict, List
 import mido
 
 from lss.pad import Pad
-from lss.utils import open_input, open_output, register_signal_handler
+from lss.utils import open_input, open_output
 
 
 class BaseLaunchpad:
@@ -28,9 +28,10 @@ class BaseLaunchpad:
 
     def reset_all_pads(self) -> None:
         self.pads = {}
-        for x in range(self.row_count):
+        for x in range(self.column_count):
             for y in range(self.row_count):
-                pad = Pad(x, y, launchpad=self)
+                is_function_pad = y == 0
+                pad = Pad(x, y, launchpad=self, is_function_pad=is_function_pad)
                 pad.off()
                 self.pads[pad.note] = pad
 

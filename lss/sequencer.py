@@ -24,6 +24,7 @@ class Sequencer:
         self._tempo = 120  # bpm
         self._running = True
         self._debug = debug
+        self._position = 0
 
     def _sig_handler(self, signum, frame):
         print("\nExiting...")
@@ -82,9 +83,12 @@ class Sequencer:
             return
 
         pad = self.launchpad.get_pad(msg.note)
-        if pad:
-            pad.click()
+        if not pad:
             return
+        if pad.is_function_pad:
+            self._position = pad.x - 1
+            return
+        pad.click()
 
     def _mute(self, msg: int) -> None:
         """All pads in last right column are used to mute corresponding row"""
@@ -103,9 +107,15 @@ class Sequencer:
         self.midi_outport.send(mido.Message("note_on", note=note))
         self.midi_outport.send(mido.Message("note_off", note=note))
 
+    def _callback(self, pad):
+        if pad.is_function_pad:
+            return
+        if not self._is_stopped:
+            self.send_message(pad.sound.value)
+
     async def _process_column(self, column: int):
         pads = self.launchpad.get_pads_in_column(column)
-        await asyncio.gather(*[p.process_pad(self._is_stopped, self.send_message) for p in pads])
+        await asyncio.gather(*[p.process_pad(self._callback) for p in pads])
         await self._sleep()
         await asyncio.gather(*[p.unblink() for p in pads])
 
@@ -115,10 +125,9 @@ class Sequencer:
             await asyncio.sleep(0.001)
 
     def column_iterator(self) -> Iterable[int]:
-        column = 0
         while self._running:
-            yield column
-            column = (column + 1) % 8 if not self._is_stopped else column
+            yield self._position
+            self._position = (self._position + 1) % 8 if not self._is_stopped else self._position
             time.sleep(0.001)
 
     async def run(self) -> None:
