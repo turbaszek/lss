@@ -5,11 +5,11 @@ from typing import Iterable
 import mido
 
 from lss.midi import ControlMessage, NoteMessage
-from lss.utils import FunctionPad, open_output, register_signal_handler
+from lss.utils import LSS_ASCII, FunctionPad, open_output, register_signal_handler
 
 
 class Sequencer:
-    def __init__(self, launchpad):
+    def __init__(self, launchpad, debug: bool = False):
         # Create virtual MiDI device where sequencer sends signals
         self.midi_outport = open_output("Launchpad Step Sequencer", virtual=True, autoreset=True)
         register_signal_handler(self._sig_handler)
@@ -23,9 +23,11 @@ class Sequencer:
         self._is_stopped = True
         self._tempo = 120  # bpm
         self._running = True
+        self._debug = debug
 
     def _sig_handler(self, signum, frame):
         print("\nExiting...")
+        self.launchpad.close()
         self._running = False
         self.midi_outport.close()
 
@@ -47,7 +49,9 @@ class Sequencer:
         self.launchpad.off(note)
 
     async def _process_msg(self, msg) -> None:
-        print(msg)
+        if self._debug:
+            print(f"Processing incoming message: {msg}")
+
         if ControlMessage.is_control(msg):
             self._process_control_message(msg)
             return
@@ -118,6 +122,8 @@ class Sequencer:
             time.sleep(0.001)
 
     async def run(self) -> None:
+        print(LSS_ASCII)
+        print(f"Launchpad Step Sequencer is running using {self.launchpad.name}")
         asyncio.get_event_loop().create_task(self._process_signals())
         for column in self.column_iterator():
             await self._process_column(column)

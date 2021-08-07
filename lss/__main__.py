@@ -11,10 +11,10 @@ def cli():
     """Launchpad step sequencer"""
 
 
-async def _run_sequencer(device_type: str):
+async def _run_sequencer(device_type: str, **kwargs):
     launchpad_class = DEVICES[device_type]
     launchpad = launchpad_class()
-    sequencer = Sequencer(launchpad)
+    sequencer = Sequencer(launchpad, **kwargs)
     await sequencer.run()
 
 
@@ -22,11 +22,14 @@ async def _run_sequencer(device_type: str):
 @click.option(
     "--device-type",
     type=click.Choice(DEVICES_NAMES, case_sensitive=False),
+    help="Name of MiDI device to connect to.",
 )
-def run_sequencer(device_type):
+@click.option(
+    "--debug", is_flag=True, help="Allows printing of debug information including MiDI communication."
+)
+def run_sequencer(device_type: str, debug: bool = False):
     """Starts step sequencer"""
-    print(f"Running sequencer using {device_type}")
-    asyncio.run(_run_sequencer(device_type=device_type))
+    asyncio.run(_run_sequencer(device_type=device_type, debug=debug))
 
 
 @click.group(name="devices")

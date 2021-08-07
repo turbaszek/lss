@@ -16,13 +16,12 @@ class BaseLaunchpad:
     def __init__(self):
         self._outport = open_output(self.name + " In", autoreset=True)
         self._inport = open_input(self.name + " Out", autoreset=True)
-        register_signal_handler(self._sig_handler)
         self.reset_all_pads()
 
     def hand_shake(self):
         raise NotImplementedError()
 
-    def _sig_handler(self, signum, frame):
+    def close(self):
         self.reset_all_pads()
         self._inport.close()
         self._outport.close()
