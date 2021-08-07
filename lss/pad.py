@@ -36,6 +36,9 @@ class Pad:
         self._muted = False
         self._sound = MiDIDrums.get_sound(self.y)
 
+    def __repr__(self):
+        return f"Pad({self.x}, {self.y}, note={self.note})"
+
     @staticmethod
     def get_note(x: int, y: int) -> int:
         return 10 * (y + 1) + x + 1
@@ -77,5 +80,4 @@ class Pad:
     async def process_pad(self, is_stopped: bool, callback) -> None:
         self.blink()
         if not is_stopped and self._is_on and not self._muted:
-            print(f"playing {self._sound}")
             callback(self._sound.value)

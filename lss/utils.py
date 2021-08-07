@@ -1,7 +1,9 @@
-import asyncio
+import os
 import signal
+import sys
 
 import mido
+from loguru import logger
 
 
 def register_signal_handler(func) -> None:
@@ -46,3 +48,13 @@ class FunctionPad:
     ARROW_DOWN = 92
     STOP = 19
     TEMPO_PADS = [ARROW_UP, ARROW_DOWN]
+
+
+LSS_ASCII = r"""
+.____       _________ _________
+|    |     /   _____//   _____/
+|    |     \_____  \ \_____  \
+|    |___  /        \/        \
+|_______ \/_______  /_______  /
+        \/        \/        \/
+"""
