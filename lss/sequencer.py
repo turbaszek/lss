@@ -86,7 +86,9 @@ class Sequencer:
         if not pad:
             return
         if pad.is_function_pad:
-            self._position = pad.x - 1
+            # Change play head position, make sure it's always reset
+            # to selected position
+            self._position = (pad.x - int(not self._is_stopped)) % 8
             return
         pad.click()
 
