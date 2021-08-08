@@ -23,7 +23,7 @@ Communication is done using [mido](https://mido.readthedocs.io) (python midi wra
 When started `lss` creates new MiDI source named `Launchpad Step Sequencer`. This source
 can be used as input in Logic Pro (or other DAW).
 
-<p align="center"><img src="images/lss_input.png" height="200" alt="Launchpad Step Sequencer in Logic Pro"></p>
+<img src="images/lss_input.png" height="200" alt="Launchpad Step Sequencer in Logic Pro">
 In Logic you may need to select
 `Control Surfaces > Bypass All Control Surfaces` to avoid default mode of launchpad.
 
