@@ -32,7 +32,7 @@ The sequencer allows you to change tempo, mute particular instruments and reset 
 <p align="center"><img src="images/lss_function_map.png" height="300" alt="Launchpad Step Sequencer in Logic Pro"></p>
 
 ### Demo
-<p align="center">[<img src="images/lss_demo.png" height="300" alt="Demo video on YouTube">](https://youtu.be/1i5aPPSh9DQ)</p>
+[<p align="center"><img src="images/lss_demo.png" height="300" alt="Demo video on YouTube"></p>](https://youtu.be/1i5aPPSh9DQ)
 
 ## Installation
 
